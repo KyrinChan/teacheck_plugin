@@ -42,11 +42,11 @@ let refresh_task = schedule.scheduleJob(rule, async (e) => {  //定时更新
             try {
                 var response = await fetch(urls[i]+"/v1/short", { "method": "GET" });
             } catch (e) {
-                Bot.pickUser(masterId).sendMsg("发生异常:" + e)
+                Bot.pickUser(masterId).sendMsg("出事了:" + e)
                 console.log("发生异常:" + e)
             }
             if(response.status==200){
-                await Bot.pickUser(masterId).sendMsg(`使用api：${urls[i]}`)
+                await Bot.pickUser(masterId).sendMsg(`使用api进行刷新：${urls[i]}`)
                 break
             }
         }
@@ -86,7 +86,7 @@ let refresh_task = schedule.scheduleJob(rule, async (e) => {  //定时更新
             await Bot.pickUser(masterId).sendMsg(`更新了${refresh_num}条`)
             if(refresh_num<=10) {await Bot.pickUser(masterId).sendMsg(`${refresh}`)}
         }
-        await Bot.pickUser(masterId).sendMsg(`成分姬 V列表自动更新已完成`)
+        await Bot.pickUser(masterId).sendMsg(`茶成分表刷新！`)
     }
 })
 
@@ -112,15 +112,15 @@ export class example extends plugin {
             priority: 5000,
             rule: [
                 {
-                    reg: '^#?查?成分帮助$',
+                    reg: '^>?查?成分帮助$',
                     fnc: 'chengfen_help'
                 },
                 {
-                  reg: "^#?更新(V|v)列表$",
+                  reg: "^>?更新(V|v)列表$",
                   fnc: 'get_v_list'
                 },
                 {
-                  reg: "^#?查?成分.*$",
+                  reg: "^#?茶?成分.*$",
                   fnc: 'cha_chengfen'
                 }
             ]
@@ -131,7 +131,7 @@ export class example extends plugin {
     async cha_chengfen(e) {
         let base_info = []
         let message = []
-        let mid = e.msg.replace(/#| |查?成分/g, "")
+        let mid = e.msg.replace(/#| |茶?成分/g, "")
         if(mid == "") {
             this.chengfen_help(e)
             return
@@ -142,24 +142,24 @@ export class example extends plugin {
             mid = uid_name["mid"]
             name = uid_name["name"]
             if (isNaN(mid)) {
-                this.reply(`无法由该昵称(${name})转换为uid`)
+                this.reply(`不认识(${name})喵，请先绑定uid`)
                 return false
             }
             else{
-                this.reply(`已使用uid：${mid}，昵称为：${name}`)
+                this.reply(`找到${mid}！ 是"${name}"呢`)
             }
         }
         const vtb_list = JSON.parse(fs.readFileSync(dirpath + "/" + filename, "utf8"));//读取文件
         const attention_list = await this.get_attention_list(mid)
         if(attention_list.card.attention!=0 && JSON.stringify(attention_list.card.attentions)=="[]"){
-            this.reply(`对方可能隐藏了关注列表`)
+            this.reply(`筛涩，不让茶成分捏`)
             return
         }
         const medal_list = await this.get_medal_list(mid)
         await base_info.push(segment.image((attention_list.card.face)))
         await base_info.push(`${JSON.stringify(attention_list.card.name).replaceAll(`\"`, ``)}  Lv${JSON.stringify(attention_list.card.level_info.current_level)}\n粉丝：${attention_list.card.fans}\n关注：${Object.keys(attention_list.card.attentions).length}\n`)
         if(attention_list.card.official_verify.type!=-1)
-            await base_info.push(`bilibili认证：${JSON.stringify(attention_list.card.official_verify.desc).replaceAll(`\"`, ``)}`)
+            await base_info.push(`叔叔认证: ${JSON.stringify(attention_list.card.official_verify.desc).replaceAll(`\"`, ``)}`)
         
         var v_num = 0
         for(var i = 0;i<Object.keys(attention_list.card.attentions).length;i++){
@@ -174,7 +174,7 @@ export class example extends plugin {
         }
         message.unshift(`${(v_num/(i)*100).toFixed(2)}% (${v_num}/${i})\n-------\n`)
         
-        let forwardMsg = await this.makeForwardMsg(`查成分结果：`, base_info, message)
+        let forwardMsg = await this.makeForwardMsg(`茶的配方表:`, base_info, message)
         await this.reply(forwardMsg)
         return
     }
@@ -184,7 +184,7 @@ export class example extends plugin {
         try {
             var response = await fetch(search_url+name, { "headers": {"cookie": cookie, "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/115.0"}, "method": "GET" });
         } catch (e) {
-            this.reply("name2uid请求发生异常:" + e + "，可能是cookie中的buvid3失效导致")
+            this.reply("出事了，请先绑定uid试试看捏")
             console.log("name2uid请求发生异常:" + e)
         }
         let search_result = await response.json()
@@ -196,12 +196,12 @@ export class example extends plugin {
                 return uid_name
             }
             else {
-                this.reply("无法由昵称转为uid：搜索结果为0")
+                this.reply("不认识！请先绑定uid试试看捏")
                 return false
             }
         }
         else {
-            this.reply("昵称转uid解析过程发生异常:"+JSON.stringify(search_result))
+            this.reply("不认识！请先绑定uid试试看捏")
             console.log("昵称转uid解析过程发生异常")
             return false
         }
@@ -215,11 +215,11 @@ export class example extends plugin {
             try {
                 var response = await fetch(urls[i]+"/v1/short", { "method": "GET" });
             } catch (e) {
-                this.reply("发生异常:" + e)
+                this.reply("这茶有毒，不行捏")
                 console.log("发生异常:" + e)
             }
             if(response.status==200){
-                await this.reply(`使用api：${urls[i]}`)
+                await this.reply(`茶寻中`)
                 break
             }
         }
@@ -262,12 +262,12 @@ export class example extends plugin {
     async get_attention_list(mid) {
         var response = await fetch(attention_url+mid, { "method": "GET" });
         if (response.status>=400&&response.status<500) {
-            await this.reply("404，可能是uid不存在")
+            await this.reply("真的有这个uid吗？")
             return false
         }
         var attention_list = await response.json()
         if(attention_list.code!=0){
-            await this.reply(`获取目标关注列表失败，可能是查无此人：${attention_list.message}`)
+            await this.reply(`这家伙真的存在吗？`)
             return false
         }
         return attention_list
@@ -276,13 +276,13 @@ export class example extends plugin {
     async get_medal_list(mid) {
         var response = await fetch(medal_url+mid, { "headers": {"cookie": cookie},"method": "GET" });
         if (response.status==404) {
-            await this.reply("404，可能是uid不存在")
+            await this.reply("真的有这个uid吗？")
             return false
         }
         var medal_list_raw = await response.json()
         var medal_list = {}
         if(medal_list_raw.code!=0){
-            await this.reply(`获取粉丝牌数据错误：${JSON.stringify(medal_list_raw.message)}，一般是cookie中的SESSDATA过期导致`)
+            await this.reply(`茶成分出问题了，感觉像token过期了捏`)
             return medal_list
         }
         for(var i = 0;i<Object.keys(medal_list_raw.data.list).length;i++){
