@@ -19,9 +19,9 @@ import common from '../../lib/common/common.js'
 var cookie = "buvid3=77380049-91B1-740F-0567-29A0687E39AC01254infoc; SESSDATA=f4ddbcf8%2C1689255625%2C28461*11;" //理论上buvid3与SESSDATA即可
 //在这里填写你的b站cookie↑↑↑↑↑
 //在这里填写你的自动刷新列表设置↓↓↓↓↓
-let rule =`0 0 0 * * ?`  //更新的秒，分，时，日，月，星期几；日月/星期几为互斥条件，必须有一组为*
+let rule =`0 15 0 * * ?`  //更新的秒，分，时，日，月，星期几；日月/星期几为互斥条件，必须有一组为*
 let auto_refresh = 1  //是否自动更新列表，1开0关
-let masterId = cfg.masterQQ[0]  //管理者QQ账号
+let masterId = cfg.masterQQ[1463307563]  //管理者QQ账号
 
 //v列表接口地址 https://github.com/dd-center/vtbs.moe/blob/master/api.md =>meta-cdn
 var api_cdn = "https://api.vtbs.moe/meta/cdn" 
@@ -96,6 +96,7 @@ const medal_url = "https://api.live.bilibili.com/xlive/web-ucenter/user/MedalWal
 const search_url = `https://api.bilibili.com/x/web-interface/wbi/search/type?search_type=bili_user&keyword=` //昵称转uid
 const dirpath = "plugins/example/cha_chengfen" //本地V列表文件夹
 var filename = `vtuber_list.json` //本地V列表文件名
+var filename_addon = `addon_list.json` //本地特殊列表文件名
 if (!fs.existsSync(dirpath)) {//如果文件夹不存在
 	fs.mkdirSync(dirpath);//创建文件夹
 }
@@ -131,6 +132,7 @@ export class example extends plugin {
     async cha_chengfen(e) {
         let base_info = []
         let message = []
+        let specialmessage = []
         let mid = e.msg.replace(/#| |茶?成分/g, "")
         if(mid == "") {
             this.chengfen_help(e)
@@ -150,6 +152,7 @@ export class example extends plugin {
             }
         }
         const vtb_list = JSON.parse(fs.readFileSync(dirpath + "/" + filename, "utf8"));//读取文件
+        const special_list = JSON.parse(fs.readFileSync(dirpath + "/" + filename_addon, "utf8"));//读取文件
         const attention_list = await this.get_attention_list(mid)
         if(attention_list.card.attention!=0 && JSON.stringify(attention_list.card.attentions)=="[]"){
             this.reply(`筛涩，不让茶成分捏`)
@@ -157,11 +160,12 @@ export class example extends plugin {
         }
         const medal_list = await this.get_medal_list(mid)
         await base_info.push(segment.image((attention_list.card.face)))
-        await base_info.push(`${JSON.stringify(attention_list.card.name).replaceAll(`\"`, ``)}  Lv${JSON.stringify(attention_list.card.level_info.current_level)}\n粉丝：${attention_list.card.fans}\n关注：${Object.keys(attention_list.card.attentions).length}\n`)
+        await base_info.push(`${JSON.stringify(attention_list.card.name).replaceAll(`\"`, ``)}  Lv${JSON.stringify(attention_list.card.level_info.current_level)}\n粉丝数  -  关注数\n${attention_list.card.fans} / ${Object.keys(attention_list.card.attentions).length}\n`)
         if(attention_list.card.official_verify.type!=-1)
             await base_info.push(`叔叔认证: ${JSON.stringify(attention_list.card.official_verify.desc).replaceAll(`\"`, ``)}`)
         
         var v_num = 0
+        var special_num = 0
         for(var i = 0;i<Object.keys(attention_list.card.attentions).length;i++){
             if(vtb_list.hasOwnProperty(attention_list.card.attentions[i])) {//如果json中存在该用户
                 let uid = attention_list.card.attentions[i]
@@ -171,10 +175,21 @@ export class example extends plugin {
                 }
                 v_num++
             }
+            if(special_list.hasOwnProperty(attention_list.card.attentions[i])) {//如果json中存在该用户
+                let uid = attention_list.card.attentions[i]
+                specialmessage.push(`！${JSON.stringify(special_list[uid].uname).replaceAll("\"","")} - ${uid}！\n`)
+                special_num++
+            }
         }
-        message.unshift(`${(v_num/(i)*100).toFixed(2)}% (${v_num}/${i})\n-------\n`)
+        message.unshift(`${(v_num/(i)*100).toFixed(5)}% - ${i} 中的 ${v_num}\n\n----添加剂----\n`)
+        if(special_num > 0){
+            message.unshift(`\n----添加剂----\n`)
+            message.unshift(specialmessage)
+            message.unshift(`${(v_num/(i)*100).toFixed(5)}% - ${i} 中的 ${v_num}\n\n----秘制酱料 x${v_num}----\n`)
+        }
+
         
-        let forwardMsg = await this.makeForwardMsg(`茶的配方表:`, base_info, message)
+        let forwardMsg = await this.makeForwardMsg(`茶的神秘配方`, base_info, message)
         await this.reply(forwardMsg)
         return
     }
@@ -282,7 +297,7 @@ export class example extends plugin {
         var medal_list_raw = await response.json()
         var medal_list = {}
         if(medal_list_raw.code!=0){
-            await this.reply(`茶成分出问题了，感觉像token过期了捏`)
+            // await this.reply(`茶成分有些问题，稍等`)
             return medal_list
         }
         for(var i = 0;i<Object.keys(medal_list_raw.data.list).length;i++){
